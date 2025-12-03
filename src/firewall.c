@@ -62,17 +62,22 @@ int main(int argc, char **argv)
 	thread_ids = calloc(num_consumers, sizeof(pthread_t));
 	DIE(thread_ids == NULL, "calloc pthread_t");
 
-	/* create consumer threads */
 	threads = create_consumers(thread_ids, num_consumers, &ring_buffer, argv[2]);
 
-	/* start publishing data */
 	publish_data(&ring_buffer, argv[1]);
 
 	/* TODO: wait for child threads to finish execution*/
-	(void) threads;
+	ring_buffer_stop(&ring_buffer);
+
+	for (int i = 0; i < num_consumers; i++)
+		pthread_join(thread_ids[i], NULL);
+
+	if (threads != num_consumers)
+		fprintf(stderr, "Warning: only %d/%d consumers created\n", threads, num_consumers);
+
 
 	free(thread_ids);
+	ring_buffer_destroy(&ring_buffer);
 
 	return 0;
 }
-
