@@ -50,9 +50,7 @@ void consumer_thread(so_consumer_ctx_t *ctx)
 			status = "DROP";
 
 		// linia pentru acest pachet
-		n = snprintf(line_buf, sizeof(line_buf),
-			     "%s %016lx %lu\n",
-			     status, h, pkt->hdr.timestamp);
+		n = snprintf(line_buf, sizeof(line_buf), "%s %016lx %lu\n", status, h, pkt->hdr.timestamp);
 
 		pthread_mutex_lock(ctx->log_mutex);	// protejare scriere si acces la next_seq_to_write
 
@@ -96,16 +94,16 @@ int create_consumers(pthread_t *tids,
 
 	out_fd = malloc(sizeof(int)); // aloc memorie pentru descriptorul de fisier
 	if (out_fd == NULL) {
-		perror("malloc out_fd");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "malloc out_fd\n");
+		return -1;
 	}
 
 	*out_fd = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666); // deschid fisierul pentru scriere
 	// se verifica daca open a reusit
 	if (*out_fd < 0) {
-		perror("open output");
+		fprintf(stderr, "Nu pot deschide fisierul de iesire\n");
 		free(out_fd);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	dq_mutex = malloc(sizeof(pthread_mutex_t)); // mutex pentru dequeue
@@ -115,14 +113,14 @@ int create_consumers(pthread_t *tids,
 	next_seq = malloc(sizeof(size_t)); // aloc next_seq_to_write
 
 	if (!dq_mutex || !log_mtx || !log_condv || !counter || !next_seq) {
-		perror("malloc sync vars");
+		fprintf(stderr, "malloc sync vars\n");
 		free(out_fd);
 		free(dq_mutex);
 		free(log_mtx);
 		free(log_condv);
 		free(counter);
 		free(next_seq);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	pthread_mutex_init(dq_mutex, NULL); // initializez mutex-ul pentru dequeue
@@ -136,8 +134,8 @@ int create_consumers(pthread_t *tids,
 		so_consumer_ctx_t *ctx = malloc(sizeof(*ctx)); // context individual pentru fiecare thread
 
 		if (ctx == NULL) {
-			perror("malloc ctx");
-			exit(EXIT_FAILURE);
+			fprintf(stderr, "malloc ctx\n");
+			return -1;
 		}
 
 		ctx->producer_rb = rb; // setare ring buffer
@@ -149,11 +147,9 @@ int create_consumers(pthread_t *tids,
 		ctx->out_fd = out_fd; // pointer la descriptorul de fisier comun
 
 		// creare thread consumer
-		if (pthread_create(&tids[i], NULL,
-				   consumer_start,
-				   ctx) != 0) {
-			perror("pthread_create");
-			exit(EXIT_FAILURE);
+		if (pthread_create(&tids[i], NULL, consumer_start, ctx) != 0) {
+			fprintf(stderr, "pthread_create\n");
+			return -1;
 		}
 	}
 
